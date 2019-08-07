@@ -1,6 +1,18 @@
-use minesweeper::Field;
+use minesweeper::{
+    args::{get_args, Params},
+    field::Field,
+};
+
+use std::io::{stdout, Write};
 
 fn main() {
-    let field = Field::new(5, 5).populate_with_mines(5);
-    println!("{}", field);
+    let Params {
+        height,
+        width,
+        nb_mines,
+    } = get_args();
+
+    let field = Field::new(height, width).populate_with_mines(nb_mines);
+    print!("{}", field);
+    stdout().flush().unwrap();
 }
