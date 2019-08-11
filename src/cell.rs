@@ -28,12 +28,18 @@ impl Display for Cell {
             Cell {
                 aspect: Aspect::Flagged,
                 ..
-            } => write!(f, "🏁 "),
+            } => write!(f, "🏳 "),
             Cell {
                 content: Content::Empty,
                 adjacent_mines,
                 ..
-            } => write!(f, "{} ", adjacent_mines),
+            } => {
+                if *adjacent_mines > 0 {
+                    write!(f, "{} ", adjacent_mines)
+                } else {
+                    write!(f, "  ")
+                }
+            }
             Cell { content, .. } => write!(f, "{} ", content),
         }
     }

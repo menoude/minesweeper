@@ -12,7 +12,7 @@ pub enum Content {
 impl Display for Content {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         let character = match self {
-            Content::Mine => 'X',
+            Content::Mine => '💥',
             Content::Empty => '.',
         };
         write!(f, "{}", character)
