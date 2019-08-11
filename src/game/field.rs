@@ -1,7 +1,4 @@
-use crate::game::{
-    cell::{Aspect, Cell},
-    content::Content,
-};
+use crate::game::cell::{Aspect, Cell, Content};
 
 use rand::random;
 
@@ -15,13 +12,11 @@ use std::{
 #[derive(Debug)]
 pub struct Field {
     pub cells: Vec<Vec<Cell>>,
-    nb_cells: usize,
+    pub nb_cells: usize,
     nb_revealed_cells: usize,
     nb_of_mines: usize,
     pub height: usize,
     pub width: usize,
-    characters_height: usize,
-    characters_width: usize,
 }
 
 impl Display for Field {
@@ -59,8 +54,6 @@ impl Field {
             nb_of_mines: 0,
             height,
             width,
-            characters_height: 1,
-            characters_width: 2,
         }
     }
 
@@ -113,10 +106,13 @@ impl Field {
         self.cells[y][x].has_mine()
     }
 
-    pub fn convert_coordinates(&self, (mut y, mut x): (usize, usize)) -> (usize, usize) {
-        y = (y - 1) / self.characters_height;
-        x = (x - 1) / self.characters_width;
-        println!("Position clicked: ({}, {})\r", y, x);
+    pub fn convert_coordinates(
+        &self,
+        (mut y, mut x): (usize, usize),
+        characters_width: usize,
+    ) -> (usize, usize) {
+        y -= 1;
+        x = (x - 1) / characters_width;
         (y, x)
     }
 

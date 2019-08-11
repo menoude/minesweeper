@@ -1,8 +1,13 @@
-use crate::game::content::Content;
 use std::{
     fmt,
     fmt::{Display, Formatter},
 };
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Content {
+    Mine,
+    Empty,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Aspect {
@@ -16,33 +21,6 @@ pub struct Cell {
     pub content: Content,
     pub adjacent_mines: u16,
     pub aspect: Aspect,
-}
-
-impl Display for Cell {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match self {
-            Cell {
-                aspect: Aspect::Hidden,
-                ..
-            } => write!(f, "📦 "),
-            Cell {
-                aspect: Aspect::Flagged,
-                ..
-            } => write!(f, "🏳 "),
-            Cell {
-                content: Content::Empty,
-                adjacent_mines,
-                ..
-            } => {
-                if *adjacent_mines > 0 {
-                    write!(f, "{} ", adjacent_mines)
-                } else {
-                    write!(f, "  ")
-                }
-            }
-            Cell { content, .. } => write!(f, "{} ", content),
-        }
-    }
 }
 
 impl Cell {
@@ -72,5 +50,28 @@ impl Cell {
             Aspect::Flagged => self.aspect = Aspect::Hidden,
             _ => {}
         }
+    }
+}
+
+impl Display for Cell {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        let character = match self {
+            Cell {
+                aspect: Aspect::Hidden,
+                ..
+            } => String::from("📦"),
+            Cell {
+                aspect: Aspect::Flagged,
+                ..
+            } => String::from("🏳"),
+            Cell { content: Content::Mine, ..} => String::from("💥"),
+            Cell {
+                content: Content::Empty,
+                adjacent_mines,
+                ..
+            } if *adjacent_mines > 0 => adjacent_mines.to_string(),
+            _ => String::from(" "),
+        };
+        write!(f, "{}", character)
     }
 }

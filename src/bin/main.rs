@@ -11,7 +11,7 @@ fn main() {
         nb_mines,
     } = get_args();
 
-    if let Err(e) = Game::run(height, width, nb_mines) {
+    if let Err(e) = Game::new((height, width), nb_mines).run() {
         println!("{}", e);
         exit(1);
     }
