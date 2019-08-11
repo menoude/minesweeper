@@ -1,4 +1,4 @@
-use crate::content::Content;
+use crate::game::content::Content;
 use std::{
     fmt,
     fmt::{Display, Formatter},
@@ -60,6 +60,10 @@ impl Cell {
 
     pub fn has_adjacent_mine(self) -> bool {
         self.adjacent_mines > 0
+    }
+
+    pub fn set_mine(&mut self) {
+        self.content = Content::Mine;
     }
 
     pub fn toggle_flag(&mut self) {

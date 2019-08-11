@@ -1,4 +1,4 @@
-use crate::field::Field;
+use crate::game::field::Field;
 
 use std::{
 	fmt::Write,

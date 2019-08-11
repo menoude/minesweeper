@@ -1,4 +1,4 @@
-use crate::{
+use crate::game::{
     cell::{Aspect, Cell},
     content::Content,
 };
@@ -64,25 +64,23 @@ impl Field {
         }
     }
 
-    pub fn populate_with_mines(mut self, nb_mines: usize) -> Self {
+    pub fn populate_with_mines(mut self, mut nb_mines: usize) -> Self {
         self.nb_of_mines = nb_mines;
-        let mut remaining_mines = nb_mines;
-        while remaining_mines > 0 {
+        while nb_mines > 0 {
             let random_cell_nb = random::<usize>() % self.nb_cells;
             let random_height = random_cell_nb / self.width;
             let random_width = random_cell_nb % self.width;
-            let random_cell = &self.cells[random_height][random_width].content;
-            if *random_cell == Content::Empty {
+            let random_cell = &self.cells[random_height][random_width];
+            if random_cell.content == Content::Empty {
                 self.place_mine(random_height, random_width);
-                remaining_mines -= 1;
+                nb_mines -= 1;
             }
         }
         self
     }
 
     fn place_mine(&mut self, mine_row: usize, mine_col: usize) {
-        self.cells[mine_row][mine_col].content = Content::Mine;
-
+        self.cells[mine_row][mine_col].set_mine();
         let adjacent_positions = self.get_adjacent_positions(mine_row, mine_col);
         for (row, col) in adjacent_positions {
             self.cells[row][col].adjacent_mines += 1;
@@ -111,8 +109,8 @@ impl Field {
         y < self.height && x < self.width
     }
 
-    pub fn position_has_mine(&self, y: usize, x: usize) -> bool {
-        self.cells[y][x].content == Content::Mine
+    pub fn cell_has_mine(&self, y: usize, x: usize) -> bool {
+        self.cells[y][x].has_mine()
     }
 
     pub fn convert_coordinates(&self, (mut y, mut x): (usize, usize)) -> (usize, usize) {
