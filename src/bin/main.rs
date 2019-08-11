@@ -1,18 +1,9 @@
-use minesweeper::{
-    args::{get_args, Params},
-    field::Field,
-};
-
-use std::io::{stdout, Write};
+use minesweeper::run;
+use std::process::exit;
 
 fn main() {
-    let Params {
-        height,
-        width,
-        nb_mines,
-    } = get_args();
-
-    let field = Field::new(height, width).populate_with_mines(nb_mines);
-    print!("{}", field);
-    stdout().flush().unwrap();
+    if let Err(e) = run() {
+        println!("{}", e);
+        exit(1);
+    }
 }
