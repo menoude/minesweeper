@@ -51,6 +51,7 @@ impl Game {
 		let mut screen = Output::new(self.field.height, 4);
 		screen.render_field(&self.field);
 		screen.prompt_mode("Normal mode");
+		screen.prompt_usage();
 		for e in input.events() {
 			if e.is_err() {
 				println!("{:?}", e);
@@ -58,6 +59,7 @@ impl Game {
 			}
 			let event = e.unwrap();
 			if let Event::Key(Key::Esc) = event {
+				screen.reposition_cursor();
 				return Ok(());
 			}
 			match &self.mode {
@@ -69,14 +71,11 @@ impl Game {
 							if self.field.cell_has_mine(y, x) {
 								screen.render_field(&self.field);
 								screen.prompt_message("Boom, you lost...\n");
+								screen.reposition_cursor();
 								break;
 							}
 							screen.render_field(&self.field);
-						} else {
-							screen
-								.prompt_message(&format!("Out of bound position: ({}, {})", y, x));
 						}
-
 					}
 					Event::Key(Key::Char('f')) => self.change_mode(&mut screen),
 					_ => {}
@@ -100,6 +99,7 @@ impl Game {
 
 			if self.field.nb_of_unreveiled_cells() == self.nb_mines {
 				screen.prompt_message("You won, congrats!\n");
+				screen.reposition_cursor();
 				break;
 			}
 		}

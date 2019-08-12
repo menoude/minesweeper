@@ -2,6 +2,8 @@ use clap::{App, Arg};
 
 use crate::game::Config;
 
+use std::cmp::max;
+
 pub fn get_args() -> Config {
     let matches = App::new("Minesweeper")
         .version("1.0")
@@ -44,7 +46,7 @@ pub fn get_args() -> Config {
     let nb_mines = matches
         .value_of("nb_mines")
         .and_then(|val| val.parse().ok())
-        .unwrap_or(height * width / 2);
+        .unwrap_or_else(|| max(height, width));
 
     if (width < 2 && height < 2) || height > 30 || width > 24 {
         panic!("Wrong size, please choose a size between 2x2 and 100x100.")

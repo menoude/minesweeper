@@ -20,6 +20,7 @@ pub struct Output {
 	out: MouseTerminal<HideCursor<RawTerminal<Stdout>>>,
 	mode_row: u16,
 	prompt_row: u16,
+	usage_row: u16,
 }
 
 impl Output {
@@ -31,6 +32,7 @@ impl Output {
 			out,
 			mode_row: height as u16 + 3,
 			prompt_row: height as u16 + 4,
+			usage_row: height as u16 + 5,
 		}
 	}
 
@@ -43,7 +45,7 @@ impl Output {
 		);
 
 		let mut buffer = String::with_capacity(
-			(field.height + 4) * (field.width + 2) * self.characters_width * 4,
+			(field.height + 5) * (field.width + 2) * self.characters_width * 4,
 		);
 		let horizontal_edge = "=".repeat(field.width * self.characters_width + 2);
 		write!(&mut buffer, "{}\n\r", horizontal_edge).unwrap();
@@ -55,7 +57,7 @@ impl Output {
 			write!(&mut buffer, "+\n\r").unwrap();
 		}
 		write!(&mut buffer, "{}", horizontal_edge).unwrap();
-		println!("{}", buffer);
+		println!("{}\r", buffer);
 	}
 
 	fn render_cell(&self, cell: Cell) -> String {
@@ -95,9 +97,30 @@ impl Output {
 		self.out.flush().unwrap();
 	}
 
+	pub fn prompt_usage(&mut self) {
+		let black_on_white = format!("{}{}", color::Bg(color::White), color::Fg(color::Black));
+		let reset_all = format!("{}{}", color::Bg(color::Reset), color::Fg(color::Reset));
+		println!(
+			"{}{}F{} Change mode (flag / normal)\r",
+			cursor::Goto(1, self.usage_row),
+			black_on_white,
+			reset_all
+		);
+		println!(
+			"{}Esc{} Quit\r",
+			black_on_white,
+			reset_all
+		);
+	}
+
 	pub fn convert_coordinates(&self, (mut y, mut x): (usize, usize)) -> (usize, usize) {
 		y -= 2;
 		x = (x - 2) / self.characters_width;
 		(y, x)
+	}
+
+	pub fn reposition_cursor(&mut self) {
+		print!("{}{}", cursor::Goto(1, self.usage_row), clear::AfterCursor);
+		self.out.flush().unwrap();
 	}
 }
