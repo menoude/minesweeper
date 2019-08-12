@@ -1,5 +1,5 @@
 use crate::game::{
-	cell::{Aspect, Content},
+	cell::{Aspect, Cell, Content},
 	field::Field,
 };
 
@@ -42,33 +42,36 @@ impl Output {
 			cursor::Goto(1, 1)
 		);
 
-		let mut buffer =
-			String::with_capacity(field.nb_cells * self.characters_width + (field.height + 2) * 2);
+		let mut buffer = String::with_capacity(
+			(field.height + 4) * (field.width + 2) * self.characters_width * 4,
+		);
 		let horizontal_edge = "=".repeat(field.width * self.characters_width + 2);
 		write!(&mut buffer, "{}\n\r", horizontal_edge).unwrap();
 		for line in field.cells.iter() {
 			write!(&mut buffer, "+").unwrap();
 			for cell in line.iter() {
-				let color = match (cell.aspect, cell.content) {
-					(Aspect::Hidden, _) => color::Fg(color::White).to_string(),
-					(Aspect::Flagged, _) => color::Fg(color::Yellow).to_string(),
-					(Aspect::Visible, Content::Mine) => color::Fg(color::Red).to_string(),
-					(Aspect::Visible, Content::Empty) => color::Fg(color::Green).to_string(),
-				};
-				write!(
-					&mut buffer,
-					"{}{:^2$}{reset}",
-					color,
-					cell.to_string(),
-					self.characters_width,
-					reset = color::Fg(color::Reset)
-				)
-				.unwrap();
+				write!(&mut buffer, "{}", self.render_cell(*cell)).unwrap();
 			}
 			write!(&mut buffer, "+\n\r").unwrap();
 		}
 		write!(&mut buffer, "{}", horizontal_edge).unwrap();
 		println!("{}", buffer);
+	}
+
+	fn render_cell(&self, cell: Cell) -> String {
+		let color = match (cell.aspect, cell.content) {
+			(Aspect::Hidden, _) => color::Fg(color::White).to_string(),
+			(Aspect::Flagged, _) => color::Fg(color::Yellow).to_string(),
+			(Aspect::Visible, Content::Mine) => color::Fg(color::Red).to_string(),
+			(Aspect::Visible, Content::Empty) => color::Fg(color::Green).to_string(),
+		};
+		format!(
+			"{}{:^width$}{}",
+			color,
+			cell.to_string(),
+			color::Fg(color::Reset),
+			width = self.characters_width
+		)
 	}
 
 	pub fn prompt_mode(&mut self, message: &str) {

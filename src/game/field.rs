@@ -2,34 +2,15 @@ use crate::game::cell::{Aspect, Cell, Content};
 
 use rand::random;
 
-use std::{
-    cmp::min,
-    fmt,
-    fmt::Write,
-    fmt::{Display, Formatter},
-};
+use std::cmp::min;
 
 #[derive(Debug)]
 pub struct Field {
     pub cells: Vec<Vec<Cell>>,
     pub nb_cells: usize,
-    nb_revealed_cells: usize,
-    nb_of_mines: usize,
     pub height: usize,
     pub width: usize,
-}
-
-impl Display for Field {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        let mut buffer = String::with_capacity(self.cells.len() * self.cells[0].len() * 4);
-        for line in self.cells.iter() {
-            for cell in line.iter() {
-                write!(&mut buffer, "{}", cell).unwrap();
-            }
-            writeln!(&mut buffer).unwrap();
-        }
-        write!(f, "{}", buffer)
-    }
+    pub nb_revealed_cells: usize,
 }
 
 impl Field {
@@ -50,15 +31,13 @@ impl Field {
         Field {
             cells: board,
             nb_cells,
-            nb_revealed_cells: 0,
-            nb_of_mines: 0,
             height,
             width,
+            nb_revealed_cells: 0,
         }
     }
 
     pub fn populate_with_mines(mut self, mut nb_mines: usize) -> Self {
-        self.nb_of_mines = nb_mines;
         while nb_mines > 0 {
             let random_cell_nb = random::<usize>() % self.nb_cells;
             let random_height = random_cell_nb / self.width;
@@ -106,7 +85,7 @@ impl Field {
         self.cells[y][x].has_mine()
     }
 
-    pub fn show_cell(&mut self, y: usize, x: usize) {
+    pub fn show_cells(&mut self, y: usize, x: usize) {
         let cell = &mut self.cells[y][x];
         if cell.is_visible() {
             return;
@@ -116,12 +95,12 @@ impl Field {
         if !cell.has_mine() && !cell.has_adjacent_mine() {
             let adjacent_positions = self.get_adjacent_positions(y, x);
             for (row, col) in adjacent_positions {
-                self.show_cell(row, col);
+                self.show_cells(row, col);
             }
         }
     }
 
-    pub fn is_revealed_entirely(&self) -> bool {
-        self.nb_revealed_cells + self.nb_of_mines == self.nb_cells
+    pub fn nb_of_unreveiled_cells(&self) -> usize {
+        self.nb_cells - self.nb_revealed_cells
     }
 }

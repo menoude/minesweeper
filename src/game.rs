@@ -25,7 +25,6 @@ pub struct Config {
 }
 
 pub struct Game {
-	revealed_cells: usize,
 	nb_mines: usize,
 	field: Field,
 	mode: Mode,
@@ -42,7 +41,6 @@ impl Game {
 		let field = Field::new(height, width).populate_with_mines(nb_mines);
 		Game {
 			nb_mines,
-			revealed_cells: 0,
 			field,
 			mode: Mode::Normal,
 		}
@@ -67,8 +65,7 @@ impl Game {
 					Event::Mouse(MouseEvent::Press(MouseButton::Left, x, y)) => {
 						let (y, x) = screen.convert_coordinates((y as usize, x as usize));
 						if self.field.position_is_valid(y, x) {
-							self.field.show_cell(y, x);
-							self.revealed_cells += 1;
+							self.field.show_cells(y, x);
 							if self.field.cell_has_mine(y, x) {
 								screen.render_field(&self.field);
 								screen.prompt_message("Boom, you lost...\n");
@@ -101,7 +98,7 @@ impl Game {
 				},
 			}
 
-			if self.revealed_cells + self.nb_mines == self.field.nb_cells {
+			if self.field.nb_of_unreveiled_cells() == self.nb_mines {
 				screen.prompt_message("You won, congrats!\n");
 				break;
 			}
