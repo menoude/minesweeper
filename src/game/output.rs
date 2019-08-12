@@ -72,14 +72,23 @@ impl Output {
 	}
 
 	pub fn prompt_mode(&mut self, message: &str) {
-		print!("{}{}", cursor::Goto(1, self.mode_row), clear::CurrentLine);
-		print!("{}{}\r", color::Fg(color::White), message);
-		self.out.flush().unwrap();
+		println!(
+			"{}{}{}{}\r",
+			cursor::Goto(1, self.mode_row),
+			clear::CurrentLine,
+			color::Fg(color::White),
+			message
+		);
 	}
 
 	pub fn prompt_message(&mut self, message: &str) {
-		print!("{}{}", cursor::Goto(1, self.prompt_row), clear::CurrentLine);
-		print!("{}{}\r", color::Fg(color::White), message);
+		print!(
+			"{}{}{}{}\r",
+			cursor::Goto(1, self.prompt_row),
+			clear::CurrentLine,
+			color::Fg(color::White),
+			message
+		);
 		self.out.flush().unwrap();
 	}
 
