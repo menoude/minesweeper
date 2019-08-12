@@ -59,12 +59,15 @@ impl Display for Cell {
             Cell {
                 aspect: Aspect::Hidden,
                 ..
-            } => String::from("📦"),
+            } => String::from("[]"),
             Cell {
                 aspect: Aspect::Flagged,
                 ..
-            } => String::from("🏳"),
-            Cell { content: Content::Mine, ..} => String::from("💥"),
+            } => String::from("!!"),
+            Cell {
+                content: Content::Mine,
+                ..
+            } => String::from("X"),
             Cell {
                 content: Content::Empty,
                 adjacent_mines,

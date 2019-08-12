@@ -106,16 +106,6 @@ impl Field {
         self.cells[y][x].has_mine()
     }
 
-    pub fn convert_coordinates(
-        &self,
-        (mut y, mut x): (usize, usize),
-        characters_width: usize,
-    ) -> (usize, usize) {
-        y -= 1;
-        x = (x - 1) / characters_width;
-        (y, x)
-    }
-
     pub fn show_cell(&mut self, y: usize, x: usize) {
         let cell = &mut self.cells[y][x];
         if cell.is_visible() {

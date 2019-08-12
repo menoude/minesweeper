@@ -5,7 +5,7 @@ pub mod output;
 use field::Field;
 use output::Output;
 
-use std::io::{stdin, Stdin};
+use std::io::stdin;
 
 use termion::{
 	event::{Event, Key, MouseButton, MouseEvent},
@@ -18,90 +18,107 @@ enum Mode {
 	Normal,
 }
 
+pub struct Config {
+	pub height: usize,
+	pub width: usize,
+	pub nb_mines: usize,
+}
+
 pub struct Game {
 	revealed_cells: usize,
 	nb_mines: usize,
-	output: Output,
 	field: Field,
-	input: Stdin,
 	mode: Mode,
 }
 
 impl Game {
-	pub fn new((height, width): (usize, usize), nb_mines: usize) -> Self {
+	pub fn new(
+		Config {
+			height,
+			width,
+			nb_mines,
+		}: Config,
+	) -> Self {
 		let field = Field::new(height, width).populate_with_mines(nb_mines);
-		let mut screen = Output::new(height, 3);
-		screen.render_field(&field);
-		let external_input = stdin();
 		Game {
 			nb_mines,
 			revealed_cells: 0,
-			output: screen,
-			input: external_input,
 			field,
 			mode: Mode::Normal,
 		}
 	}
 
 	pub fn run(mut self) -> Result<(), std::io::Error> {
-		for e in self.input.events() {
+		let input = stdin();
+		let mut screen = Output::new(self.field.height, 4);
+		screen.render_field(&self.field);
+		screen.prompt_mode("Normal mode");
+		for e in input.events() {
 			if e.is_err() {
 				println!("{:?}", e);
 				continue;
 			}
-			match (&self.mode, e.unwrap()) {
-				(Mode::Normal, Event::Key(Key::Char('f'))) => {
-					self.output.update_mode_prompt("Flag mode");
-					self.mode = Mode::Flag
-				}
-				(Mode::Flag, Event::Key(Key::Char('f'))) => {
-					self.output.update_mode_prompt("Normal mode");
-					self.mode = Mode::Normal
-				}
-				(Mode::Flag, Event::Mouse(MouseEvent::Press(MouseButton::Left, x, y))) => {
-					let (y, x) = self.field.convert_coordinates(
-						(y as usize, x as usize),
-						self.output.characters_width,
-					);
-					if self.field.position_is_valid(y, x) {
-						let cell = &mut self.field.cells[y][x];
-						cell.toggle_flag();
-						self.output.render_field(&self.field);
-						self.mode = Mode::Normal;
-						self.output.update_mode_prompt("Normal mode");
-					} else {
-						self.output
-							.prompt(&format!("Out of bound position: ({}, {})", y, x));
-					}
-				}
-				(Mode::Normal, Event::Mouse(MouseEvent::Press(MouseButton::Left, x, y))) => {
-					let (y, x) = self.field.convert_coordinates(
-						(y as usize, x as usize),
-						self.output.characters_width,
-					);
-					if self.field.position_is_valid(y, x) {
-						self.field.show_cell(y, x);
-						self.revealed_cells += 1;
-						if self.field.cell_has_mine(y, x) {
-							self.output.render_field(&self.field);
-							self.output.prompt("Boom, you lost...\n");
-							break;
+			let event = e.unwrap();
+			if let Event::Key(Key::Esc) = event {
+				return Ok(());
+			}
+			match &self.mode {
+				Mode::Normal => match event {
+					Event::Mouse(MouseEvent::Press(MouseButton::Left, x, y)) => {
+						let (y, x) = screen.convert_coordinates((y as usize, x as usize));
+						if self.field.position_is_valid(y, x) {
+							self.field.show_cell(y, x);
+							self.revealed_cells += 1;
+							if self.field.cell_has_mine(y, x) {
+								screen.render_field(&self.field);
+								screen.prompt_message("Boom, you lost...\n");
+								break;
+							}
+							screen.render_field(&self.field);
+						} else {
+							screen
+								.prompt_message(&format!("Out of bound position: ({}, {})", y, x));
 						}
-						self.output.render_field(&self.field);
-					} else {
-						self.output
-							.prompt(&format!("Out of bound position: ({}, {})", y, x));
+
 					}
-				}
-				(_, Event::Key(Key::Esc)) => return Ok(()),
-				_ => {}
+					Event::Key(Key::Char('f')) => self.change_mode(&mut screen),
+					_ => {}
+				},
+				Mode::Flag => match event {
+					Event::Mouse(MouseEvent::Press(MouseButton::Left, x, y)) => {
+						let (y, x) = screen.convert_coordinates((y as usize, x as usize));
+						if self.field.position_is_valid(y, x) {
+							let cell = &mut self.field.cells[y][x];
+							cell.toggle_flag();
+							screen.render_field(&self.field);
+						} else {
+							screen
+								.prompt_message(&format!("Out of bound position: ({}, {})", y, x));
+						}
+					}
+					Event::Key(Key::Char('f')) => self.change_mode(&mut screen),
+					_ => {}
+				},
 			}
 
 			if self.revealed_cells + self.nb_mines == self.field.nb_cells {
-				self.output.prompt("You won, congrats!\n");
+				screen.prompt_message("You won, congrats!\n");
 				break;
 			}
 		}
 		Ok(())
+	}
+
+	fn change_mode(&mut self, screen: &mut Output) {
+		match self.mode {
+			Mode::Flag => {
+				self.mode = Mode::Normal;
+				screen.prompt_mode("Normal mode");
+			}
+			Mode::Normal => {
+				self.mode = Mode::Flag;
+				screen.prompt_mode("Flag mode");
+			}
+		}
 	}
 }

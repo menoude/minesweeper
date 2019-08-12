@@ -1,17 +1,13 @@
 use minesweeper::{
-    args::{get_args, Params},
+    args::{get_args,},
     game::Game,
 };
 use std::process::exit;
 
 fn main() {
-    let Params {
-        height,
-        width,
-        nb_mines,
-    } = get_args();
+    let params = get_args();
 
-    if let Err(e) = Game::new((height, width), nb_mines).run() {
+    if let Err(e) = Game::new(params).run() {
         println!("{}", e);
         exit(1);
     }

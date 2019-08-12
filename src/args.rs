@@ -1,12 +1,8 @@
 use clap::{App, Arg};
 
-pub struct Params {
-    pub height: usize,
-    pub width: usize,
-    pub nb_mines: usize,
-}
+use crate::game::Config;
 
-pub fn get_args() -> Params {
+pub fn get_args() -> Config {
     let matches = App::new("Minesweeper")
         .version("1.0")
         .author("menoude")
@@ -56,7 +52,7 @@ pub fn get_args() -> Params {
         panic!("Number of mines shouldn't exceed half of the number of cells in the board.")
     }
 
-    Params {
+    Config {
         height,
         width,
         nb_mines,
