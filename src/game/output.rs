@@ -1,7 +1,11 @@
-use crate::game::{
-	cell::{Aspect, Cell, Content},
-	field::Field,
-	Mode,
+use crate::{
+	error::MineError,
+	game::{
+		cell::{Aspect, Cell, Content},
+		field::Field,
+		Mode,
+	},
+	Result,
 };
 
 use std::{
@@ -41,18 +45,23 @@ static USAGE: &str = "┌─────┬─ Usage ─────────
                       └─────┘──────────────────────────┘";
 
 impl Output {
-	pub fn new(height: usize, characters_width: usize) -> Self {
-		let out = MouseTerminal::from(HideCursor::from(stdout().into_raw_mode().unwrap()));
+	pub fn new(height: usize, characters_width: usize) -> Result<Self> {
+		let out = MouseTerminal::from(HideCursor::from(
+			stdout()
+				.into_raw_mode()
+				.map_err(|e| MineError::TerminalError(e.to_string()))?,
+		));
 		println!("{}", clear::All);
-		Output {
+		let result = Output {
 			characters_width,
 			out,
 			mode_row: height as u16 + 3,
 			prompt_row: height as u16 + 11,
-		}
+		};
+		Ok(result)
 	}
 
-	pub fn render_field(&mut self, field: &Field) {
+	pub fn render_field(&mut self, field: &Field) -> Result<()> {
 		print!(
 			"{}{}{}",
 			cursor::Goto(1, self.mode_row - 2),
@@ -68,22 +77,21 @@ impl Output {
 			&mut buffer,
 			"{}\n\r",
 			String::from(TOP_LEFT_CORNER) + &horizontal_edge + TOP_RIGHT_CORNER
-		)
-		.unwrap();
+		)?;
 		for line in field.cells.iter() {
-			write!(&mut buffer, "{}", SIDE_BORDER).unwrap();
+			write!(&mut buffer, "{}", SIDE_BORDER)?;
 			for cell in line.iter() {
-				write!(&mut buffer, "{}", self.render_cell(*cell)).unwrap();
+				write!(&mut buffer, "{}", self.render_cell(*cell))?;
 			}
-			write!(&mut buffer, "{}\n\r", SIDE_BORDER).unwrap();
+			write!(&mut buffer, "{}\n\r", SIDE_BORDER)?;
 		}
 		write!(
 			&mut buffer,
 			"{}",
 			String::from(BOTTOM_LEFT_CORNER) + &horizontal_edge + BOTTOM_RIGHT_CORNER
-		)
-		.unwrap();
+		)?;
 		println!("{}\r", buffer);
+		Ok(())
 	}
 
 	fn render_cell(&self, cell: Cell) -> String {
@@ -108,14 +116,14 @@ impl Output {
 		(y, x)
 	}
 
-	pub fn update_mode(&mut self, mode: &Mode) {
+	pub fn update_mode(&mut self, mode: &Mode) -> Result<()> {
 		print!(
 			"{}{}{}\r",
 			cursor::Goto(1, self.mode_row + 1),
 			clear::CurrentLine,
 			color::Fg(color::White)
 		);
-		self.out.flush().unwrap();
+		self.out.flush().map_err(|_| MineError::OutputError)?;
 		println!(
 			"{}\r",
 			match mode {
@@ -123,20 +131,22 @@ impl Output {
 				Mode::Flag => FLAG_MODE,
 			},
 		);
+		Ok(())
 	}
 
-	pub fn prompt_info(&mut self) {
+	pub fn prompt_info(&mut self) -> Result<()> {
 		let reset_all = format!("{}{}", color::Bg(color::Reset), color::Fg(color::Reset));
 		print!("{}{}", reset_all, cursor::Goto(1, self.mode_row));
 		print!(
 			"{}\r\n{}\r\n{}\r\n",
 			TOP_MODE_BORDER, NORMAL_MODE, BOTTOM_MODE_BORDER
 		);
-		self.out.flush().unwrap();
+		self.out.flush().map_err(|_| MineError::OutputError)?;
 		println!("{}\r\n", USAGE);
+		Ok(())
 	}
 
-	pub fn prompt_end(&mut self, message: &str) {
+	pub fn prompt_end(&mut self, message: &str) -> Result<()> {
 		print!(
 			"{}{}{}{}\r",
 			cursor::Goto(1, self.prompt_row),
@@ -144,16 +154,18 @@ impl Output {
 			color::Fg(color::White),
 			message
 		);
-		self.out.flush().unwrap();
+		self.out.flush().map_err(|_| MineError::OutputError)?;
+		Ok(())
 	}
 
-	pub fn reposition_cursor(&mut self) {
+	pub fn reposition_cursor(&mut self) -> Result<()> {
 		print!(
 			"{}{}\r",
 			cursor::Goto(1, self.prompt_row),
 			clear::CurrentLine,
 		);
-		self.out.flush().unwrap();
+		self.out.flush().map_err(|_| MineError::OutputError)?;
+		Ok(())
 	}
 
 }

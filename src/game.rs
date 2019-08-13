@@ -1,3 +1,5 @@
+use crate::{error::MineError, Result};
+
 pub mod cell;
 pub mod field;
 pub mod output;
@@ -55,17 +57,18 @@ impl Game {
 		Self::new(config)
 	}
 
-	fn change_mode(&mut self, screen: &mut Output) {
+	fn change_mode(&mut self, screen: &mut Output) -> Result<()> {
 		match self.mode {
 			Mode::Flag => {
 				self.mode = Mode::Normal;
-				screen.update_mode(&self.mode);
+				screen.update_mode(&self.mode)?;
 			}
 			Mode::Normal => {
 				self.mode = Mode::Flag;
-				screen.update_mode(&self.mode);
+				screen.update_mode(&self.mode)?;
 			}
 		}
+		Ok(())
 	}
 
 	pub fn is_won(&self) -> bool {
@@ -74,21 +77,21 @@ impl Game {
 
 }
 
-pub fn run(mut game: Game) -> Result<(), std::io::Error> {
+pub fn run(mut game: Game) -> Result<()> {
 	'outer: loop {
 		let input = stdin();
-		let mut screen = Output::new(game.field.height, 4);
-		screen.render_field(&game.field);
-		screen.update_mode(&game.mode);
-		screen.prompt_info();
+		let mut screen = Output::new(game.field.height, 4)?;
+		screen.render_field(&game.field)?;
+		screen.update_mode(&game.mode)?;
+		screen.prompt_info()?;
 		for e in input.events() {
 			if e.is_err() {
 				println!("{:?}", e);
 				continue;
 			}
-			let event = e.unwrap();
+			let event = e.map_err(|_| MineError::InputError)?;
 			if let Event::Key(Key::Esc) = event {
-				screen.reposition_cursor();
+				screen.reposition_cursor()?;
 				return Ok(());
 			} else if let Event::Key(Key::Char('r')) = event {
 				game = game.reset();
@@ -101,14 +104,14 @@ pub fn run(mut game: Game) -> Result<(), std::io::Error> {
 						if game.field.position_is_valid(y, x) {
 							game.field.show_cells(y, x);
 							if game.field.cell_has_mine(y, x) {
-								screen.render_field(&game.field);
-								screen.prompt_end("Boom, you lost...\n");
+								screen.render_field(&game.field)?;
+								screen.prompt_end("Boom, you lost...\n")?;
 								break 'outer;
 							}
-							screen.render_field(&game.field);
+							screen.render_field(&game.field)?;
 						}
 					}
-					Event::Key(Key::Char('f')) => game.change_mode(&mut screen),
+					Event::Key(Key::Char('f')) => game.change_mode(&mut screen)?,
 					_ => {}
 				},
 				Mode::Flag => match event {
@@ -117,16 +120,16 @@ pub fn run(mut game: Game) -> Result<(), std::io::Error> {
 						if game.field.position_is_valid(y, x) {
 							let cell = &mut game.field.cells[y][x];
 							cell.toggle_flag();
-							screen.render_field(&game.field);
+							screen.render_field(&game.field)?;
 						}
 					}
-					Event::Key(Key::Char('f')) => game.change_mode(&mut screen),
+					Event::Key(Key::Char('f')) => game.change_mode(&mut screen)?,
 					_ => {}
 				},
 			}
 
 			if game.is_won() {
-				screen.prompt_end("You won, congrats!\n");
+				screen.prompt_end("You won, congrats!\n")?;
 				break 'outer;
 			}
 		}

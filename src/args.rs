@@ -1,10 +1,10 @@
 use clap::{App, Arg};
 
-use crate::game::Config;
+use crate::{error::MineError, game::Config, Result};
 
 use std::cmp::max;
 
-pub fn get_args() -> Config {
+pub fn get_args() -> Result<Config> {
     let matches = App::new("Minesweeper")
         .version("1.0")
         .author("menoude")
@@ -35,28 +35,34 @@ pub fn get_args() -> Config {
         )
         .get_matches();
 
-    let height = matches
-        .value_of("height")
-        .and_then(|val| val.parse().ok())
-        .unwrap_or(8);
-    let width = matches
-        .value_of("width")
-        .and_then(|val| val.parse().ok())
-        .unwrap_or(8);
-    let nb_mines = matches
-        .value_of("nb_mines")
-        .and_then(|val| val.parse().ok())
-        .unwrap_or_else(|| max(height, width));
+    let height = match matches.value_of("height") {
+        Some(param) => match param.parse()? {
+            n @ 2..=30 => n,
+            _ => Err(MineError::SizeError)?,
+        },
+        None => 8,
+    };
 
-    if (width < 2 && height < 2) || height > 30 || width > 24 {
-        panic!("Wrong size, please choose a size between 2x2 and 100x100.")
-    } else if nb_mines > (height - 1) * (width - 1) {
-        panic!("Number of mines shouldn't exceed half of the number of cells in the board.")
-    }
+    let width = match matches.value_of("width") {
+        Some(param) => match param.parse()? {
+            n @ 2..=30 => n,
+            _ => Err(MineError::SizeError)?,
+        },
+        None => 8,
+    };
 
-    Config {
+    let nb_mines_limit = height * width - 2;
+    let nb_mines = match matches.value_of("nb_mines") {
+        Some(param) => match param.parse()? {
+            n if n < nb_mines_limit => n,
+            _ => Err(MineError::NbMinesError)?,
+        },
+        None => max(height, width),
+    };
+
+    Ok(Config {
         height,
         width,
         nb_mines,
-    }
+    })
 }
