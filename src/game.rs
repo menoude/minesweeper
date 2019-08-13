@@ -1,4 +1,4 @@
-use crate::{error::MineError, Result};
+use crate::Result;
 
 pub mod cell;
 pub mod field;
@@ -20,7 +20,7 @@ pub enum Mode {
 	Normal,
 }
 
-pub struct Config {
+pub struct GameConfig {
 	pub height: usize,
 	pub width: usize,
 	pub nb_mines: usize,
@@ -34,11 +34,11 @@ pub struct Game {
 
 impl Game {
 	pub fn new(
-		Config {
+		GameConfig {
 			height,
 			width,
 			nb_mines,
-		}: Config,
+		}: GameConfig,
 	) -> Self {
 		let field = Field::new(height, width).populate_with_mines(nb_mines);
 		Game {
@@ -49,7 +49,7 @@ impl Game {
 	}
 
 	fn reset(&self) -> Game {
-		let config = Config {
+		let config = GameConfig {
 			height: self.field.height,
 			width: self.field.width,
 			nb_mines: self.nb_mines,
@@ -61,20 +61,19 @@ impl Game {
 		match self.mode {
 			Mode::Flag => {
 				self.mode = Mode::Normal;
-				screen.update_mode(&self.mode)?;
+				screen.update_mode(&self.mode);
 			}
 			Mode::Normal => {
 				self.mode = Mode::Flag;
-				screen.update_mode(&self.mode)?;
+				screen.update_mode(&self.mode);
 			}
 		}
 		Ok(())
 	}
 
 	pub fn is_won(&self) -> bool {
-		self.field.nb_of_unreveiled_cells() == self.nb_mines
+		self.field.nb_unreveiled_cells == self.nb_mines
 	}
-
 }
 
 pub fn run(mut game: Game) -> Result<()> {
@@ -82,14 +81,10 @@ pub fn run(mut game: Game) -> Result<()> {
 		let input = stdin();
 		let mut screen = Output::new(game.field.height, 4)?;
 		screen.render_field(&game.field)?;
-		screen.update_mode(&game.mode)?;
+		screen.update_mode(&game.mode);
 		screen.prompt_info()?;
 		for e in input.events() {
-			if e.is_err() {
-				println!("{:?}", e);
-				continue;
-			}
-			let event = e.map_err(|_| MineError::InputError)?;
+			let event = e?;
 			if let Event::Key(Key::Esc) = event {
 				screen.reposition_cursor()?;
 				return Ok(());
@@ -105,7 +100,7 @@ pub fn run(mut game: Game) -> Result<()> {
 							game.field.show_cells(y, x);
 							if game.field.cell_has_mine(y, x) {
 								screen.render_field(&game.field)?;
-								screen.prompt_end("Boom, you lost...\n")?;
+								screen.prompt_end_message("Boom, you lost...");
 								break 'outer;
 							}
 							screen.render_field(&game.field)?;
@@ -129,11 +124,10 @@ pub fn run(mut game: Game) -> Result<()> {
 			}
 
 			if game.is_won() {
-				screen.prompt_end("You won, congrats!\n")?;
+				screen.prompt_end_message("You won, congrats!");
 				break 'outer;
 			}
 		}
-
 	}
 	Ok(())
 }

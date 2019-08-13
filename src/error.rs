@@ -5,12 +5,10 @@ use std::{
 
 #[derive(Debug)]
 pub enum MineError {
-    TerminalError(String),
-    OutputError,
-    InputError,
+    FormatError(std::fmt::Error),
     NbMinesError,
     SizeError,
-    IoError(String),
+    IoError(std::io::Error),
 }
 
 impl std::error::Error for MineError {}
@@ -18,10 +16,10 @@ impl std::error::Error for MineError {}
 impl Display for MineError {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         let message = match self {
-            MineError::TerminalError(e) => format!("Error with the terminal: {}", e),
-            MineError::OutputError => String::from("Output error"),
-            MineError::InputError => String::from("Input error"),
-            MineError::NbMinesError => String::from("Wrong number of mines"),
+            MineError::FormatError(e) => format!("Output error: {}", e),
+            MineError::NbMinesError => {
+                String::from("Wrong number of mines, please indicate 1 < m < height * width - 2")
+            }
             MineError::SizeError => {
                 String::from("Wrong size arguments, they are limited from 2x2 to 30x24")
             }
@@ -33,13 +31,13 @@ impl Display for MineError {
 
 impl From<std::io::Error> for MineError {
     fn from(err: std::io::Error) -> Self {
-        MineError::IoError(err.to_string())
+        MineError::IoError(err)
     }
 }
 
 impl From<std::fmt::Error> for MineError {
-    fn from(_err: std::fmt::Error) -> Self {
-        MineError::OutputError
+    fn from(err: std::fmt::Error) -> Self {
+        MineError::FormatError(err)
     }
 }
 

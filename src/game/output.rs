@@ -1,5 +1,4 @@
 use crate::{
-	error::MineError,
 	game::{
 		cell::{Aspect, Cell, Content},
 		field::Field,
@@ -32,6 +31,7 @@ static TOP_LEFT_CORNER: &str = "┌";
 static BOTTOM_LEFT_CORNER: &str = "└";
 static BOTTOM_RIGHT_CORNER: &str = "┘";
 static SIDE_BORDER: &str = "│";
+static HORIZONTAL_BORDER: &str = "─";
 static TOP_MODE_BORDER: &str =
 	"┌──────── Mode ──────────────────┐";
 static NORMAL_MODE: &str = "│ Normal mode                    │";
@@ -44,13 +44,14 @@ static USAGE: &str = "┌─────┬─ Usage ─────────
                       │ esc │   quit                   │\n\r\
                       └─────┘──────────────────────────┘";
 
+enum Side {
+	Top,
+	Bottom,
+}
+
 impl Output {
 	pub fn new(height: usize, characters_width: usize) -> Result<Self> {
-		let out = MouseTerminal::from(HideCursor::from(
-			stdout()
-				.into_raw_mode()
-				.map_err(|e| MineError::TerminalError(e.to_string()))?,
-		));
+		let out = MouseTerminal::from(HideCursor::from(stdout().into_raw_mode()?));
 		println!("{}", clear::All);
 		let result = Output {
 			characters_width,
@@ -61,101 +62,105 @@ impl Output {
 		Ok(result)
 	}
 
-	pub fn render_field(&mut self, field: &Field) -> Result<()> {
-		print!(
+	fn clear_field_instructions(&mut self) -> String {
+		format!(
 			"{}{}{}",
 			cursor::Goto(1, self.mode_row - 2),
 			clear::BeforeCursor,
 			cursor::Goto(1, 1)
-		);
+		)
+	}
 
+	pub fn render_field(&mut self, field: &Field) -> Result<()> {
 		let mut buffer = String::with_capacity(
 			(field.height + 5) * (field.width + 2) * self.characters_width * 4,
 		);
-		let horizontal_edge = "─".repeat(field.width * self.characters_width);
-		write!(
-			&mut buffer,
-			"{}\n\r",
-			String::from(TOP_LEFT_CORNER) + &horizontal_edge + TOP_RIGHT_CORNER
-		)?;
+		write!(buffer, "{}", self.clear_field_instructions())?;
+		let horizontal_edge = HORIZONTAL_BORDER.repeat(field.width * self.characters_width);
+		self.render_edge(&mut buffer, &horizontal_edge, Side::Top)?;
 		for line in field.cells.iter() {
-			write!(&mut buffer, "{}", SIDE_BORDER)?;
-			for cell in line.iter() {
-				write!(&mut buffer, "{}", self.render_cell(*cell))?;
-			}
-			write!(&mut buffer, "{}\n\r", SIDE_BORDER)?;
+			self.render_line(&mut buffer, line)?;
 		}
-		write!(
-			&mut buffer,
-			"{}",
-			String::from(BOTTOM_LEFT_CORNER) + &horizontal_edge + BOTTOM_RIGHT_CORNER
-		)?;
-		println!("{}\r", buffer);
+		self.render_edge(&mut buffer, &horizontal_edge, Side::Bottom)?;
+		println!("{}", buffer);
 		Ok(())
 	}
 
-	fn render_cell(&self, cell: Cell) -> String {
+	fn render_edge(&self, buffer: &mut String, horizontal_edge: &str, side: Side) -> Result<()> {
+		let line = match side {
+			Side::Top => String::from(TOP_LEFT_CORNER) + horizontal_edge + TOP_RIGHT_CORNER,
+			Side::Bottom => {
+				String::from(BOTTOM_LEFT_CORNER) + horizontal_edge + BOTTOM_RIGHT_CORNER
+			}
+		};
+		writeln!(buffer, "{}\r", line)?;
+		Ok(())
+	}
+
+	fn render_line(&self, buffer: &mut String, line: &[Cell]) -> Result<()> {
+		write!(buffer, "{}", SIDE_BORDER)?;
+		for &cell in line.iter() {
+			self.render_cell(buffer, cell)?;
+		}
+		write!(buffer, "{}\n\r", SIDE_BORDER)?;
+		Ok(())
+	}
+
+	fn render_cell(&self, buffer: &mut String, cell: Cell) -> Result<()> {
 		let color = match (cell.aspect, cell.content) {
 			(Aspect::Hidden, _) => color::Fg(color::White).to_string(),
 			(Aspect::Flagged, _) => color::Fg(color::Yellow).to_string(),
 			(Aspect::Visible, Content::Mine) => color::Fg(color::Red).to_string(),
 			(Aspect::Visible, Content::Empty) => color::Fg(color::Green).to_string(),
 		};
-		format!(
+		write!(
+			buffer,
 			"{}{:^width$}{}",
 			color,
 			cell.to_string(),
 			color::Fg(color::Reset),
 			width = self.characters_width
-		)
+		)?;
+		Ok(())
 	}
 
-	pub fn convert_coordinates(&self, (mut y, mut x): (usize, usize)) -> (usize, usize) {
-		y -= 2;
-		x = (x - 2) / self.characters_width;
-		(y, x)
+	fn clear_line_instructions(&mut self, line: u16) -> String {
+		format!("{}{}\r", cursor::Goto(1, line), clear::CurrentLine)
 	}
 
-	pub fn update_mode(&mut self, mode: &Mode) -> Result<()> {
-		print!(
-			"{}{}{}\r",
-			cursor::Goto(1, self.mode_row + 1),
-			clear::CurrentLine,
-			color::Fg(color::White)
-		);
-		self.out.flush().map_err(|_| MineError::OutputError)?;
+	pub fn update_mode(&mut self, mode: &Mode) {
 		println!(
-			"{}\r",
+			"{}{}{}\r",
+			self.clear_line_instructions(self.mode_row + 1),
+			color::Fg(color::White),
 			match mode {
 				Mode::Normal => NORMAL_MODE,
 				Mode::Flag => FLAG_MODE,
 			},
 		);
-		Ok(())
 	}
 
 	pub fn prompt_info(&mut self) -> Result<()> {
-		let reset_all = format!("{}{}", color::Bg(color::Reset), color::Fg(color::Reset));
-		print!("{}{}", reset_all, cursor::Goto(1, self.mode_row));
+		print!(
+			"{}{}",
+			color::Fg(color::Reset),
+			cursor::Goto(1, self.mode_row)
+		);
 		print!(
 			"{}\r\n{}\r\n{}\r\n",
 			TOP_MODE_BORDER, NORMAL_MODE, BOTTOM_MODE_BORDER
 		);
-		self.out.flush().map_err(|_| MineError::OutputError)?;
 		println!("{}\r\n", USAGE);
 		Ok(())
 	}
 
-	pub fn prompt_end(&mut self, message: &str) -> Result<()> {
-		print!(
-			"{}{}{}{}\r",
-			cursor::Goto(1, self.prompt_row),
-			clear::CurrentLine,
+	pub fn prompt_end_message(&mut self, message: &str) {
+		println!(
+			"{}{}{}\r",
+			self.clear_line_instructions(self.prompt_row),
 			color::Fg(color::White),
 			message
 		);
-		self.out.flush().map_err(|_| MineError::OutputError)?;
-		Ok(())
 	}
 
 	pub fn reposition_cursor(&mut self) -> Result<()> {
@@ -164,8 +169,13 @@ impl Output {
 			cursor::Goto(1, self.prompt_row),
 			clear::CurrentLine,
 		);
-		self.out.flush().map_err(|_| MineError::OutputError)?;
+		self.out.flush()?;
 		Ok(())
 	}
 
+	pub fn convert_coordinates(&self, (mut y, mut x): (usize, usize)) -> (usize, usize) {
+		y -= 2;
+		x = (x - 2) / self.characters_width;
+		(y, x)
+	}
 }

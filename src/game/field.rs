@@ -10,7 +10,7 @@ pub struct Field {
     pub nb_cells: usize,
     pub height: usize,
     pub width: usize,
-    pub nb_revealed_cells: usize,
+    pub nb_unreveiled_cells: usize,
 }
 
 impl Field {
@@ -33,7 +33,7 @@ impl Field {
             nb_cells,
             height,
             width,
-            nb_revealed_cells: 0,
+            nb_unreveiled_cells: nb_cells,
         }
     }
 
@@ -91,16 +91,12 @@ impl Field {
             return;
         }
         cell.set_visible();
-        self.nb_revealed_cells += 1;
+        self.nb_unreveiled_cells -= 1;
         if !cell.has_mine() && !cell.has_adjacent_mine() {
             let adjacent_positions = self.get_adjacent_positions(y, x);
             for (row, col) in adjacent_positions {
                 self.show_cells(row, col);
             }
         }
-    }
-
-    pub fn nb_of_unreveiled_cells(&self) -> usize {
-        self.nb_cells - self.nb_revealed_cells
     }
 }

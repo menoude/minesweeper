@@ -1,10 +1,10 @@
 use clap::{App, Arg};
 
-use crate::{error::MineError, game::Config, Result};
+use crate::{error::MineError, game::GameConfig, Result};
 
 use std::cmp::max;
 
-pub fn get_args() -> Result<Config> {
+pub fn get_args() -> Result<GameConfig> {
     let matches = App::new("Minesweeper")
         .version("1.0")
         .author("menoude")
@@ -45,7 +45,7 @@ pub fn get_args() -> Result<Config> {
 
     let width = match matches.value_of("width") {
         Some(param) => match param.parse()? {
-            n @ 2..=30 => n,
+            n @ 2..=24 => n,
             _ => Err(MineError::SizeError)?,
         },
         None => 8,
@@ -54,13 +54,13 @@ pub fn get_args() -> Result<Config> {
     let nb_mines_limit = height * width - 2;
     let nb_mines = match matches.value_of("nb_mines") {
         Some(param) => match param.parse()? {
-            n if n < nb_mines_limit => n,
+            n if n > 0 && n < nb_mines_limit => n,
             _ => Err(MineError::NbMinesError)?,
         },
         None => max(height, width),
     };
 
-    Ok(Config {
+    Ok(GameConfig {
         height,
         width,
         nb_mines,
