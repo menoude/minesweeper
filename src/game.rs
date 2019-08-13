@@ -13,7 +13,7 @@ use termion::{
 };
 
 #[derive(PartialEq)]
-enum Mode {
+pub enum Mode {
 	Flag,
 	Normal,
 }
@@ -46,12 +46,41 @@ impl Game {
 		}
 	}
 
-	pub fn run(mut self) -> Result<(), std::io::Error> {
+	fn reset(&self) -> Game {
+		let config = Config {
+			height: self.field.height,
+			width: self.field.width,
+			nb_mines: self.nb_mines,
+		};
+		Self::new(config)
+	}
+
+	fn change_mode(&mut self, screen: &mut Output) {
+		match self.mode {
+			Mode::Flag => {
+				self.mode = Mode::Normal;
+				screen.update_mode(&self.mode);
+			}
+			Mode::Normal => {
+				self.mode = Mode::Flag;
+				screen.update_mode(&self.mode);
+			}
+		}
+	}
+
+	pub fn is_won(&self) -> bool {
+		self.field.nb_of_unreveiled_cells() == self.nb_mines
+	}
+
+}
+
+pub fn run(mut game: Game) -> Result<(), std::io::Error> {
+	'outer: loop {
 		let input = stdin();
-		let mut screen = Output::new(self.field.height, 4);
-		screen.render_field(&self.field);
-		screen.prompt_mode("Normal mode");
-		screen.prompt_usage();
+		let mut screen = Output::new(game.field.height, 4);
+		screen.render_field(&game.field);
+		screen.update_mode(&game.mode);
+		screen.prompt_info();
 		for e in input.events() {
 			if e.is_err() {
 				println!("{:?}", e);
@@ -61,61 +90,47 @@ impl Game {
 			if let Event::Key(Key::Esc) = event {
 				screen.reposition_cursor();
 				return Ok(());
+			} else if let Event::Key(Key::Char('r')) = event {
+				game = game.reset();
+				continue 'outer;
 			}
-			match &self.mode {
+			match &game.mode {
 				Mode::Normal => match event {
-					Event::Mouse(MouseEvent::Press(MouseButton::Left, x, y)) => {
+					Event::Mouse(MouseEvent::Press(MouseButton::Left, x, y)) if y > 1 && x > 1 => {
 						let (y, x) = screen.convert_coordinates((y as usize, x as usize));
-						if self.field.position_is_valid(y, x) {
-							self.field.show_cells(y, x);
-							if self.field.cell_has_mine(y, x) {
-								screen.render_field(&self.field);
-								screen.prompt_message("Boom, you lost...\n");
-								screen.reposition_cursor();
-								break;
+						if game.field.position_is_valid(y, x) {
+							game.field.show_cells(y, x);
+							if game.field.cell_has_mine(y, x) {
+								screen.render_field(&game.field);
+								screen.prompt_end("Boom, you lost...\n");
+								break 'outer;
 							}
-							screen.render_field(&self.field);
+							screen.render_field(&game.field);
 						}
 					}
-					Event::Key(Key::Char('f')) => self.change_mode(&mut screen),
+					Event::Key(Key::Char('f')) => game.change_mode(&mut screen),
 					_ => {}
 				},
 				Mode::Flag => match event {
-					Event::Mouse(MouseEvent::Press(MouseButton::Left, x, y)) => {
+					Event::Mouse(MouseEvent::Press(MouseButton::Left, x, y)) if y > 1 && x > 1 => {
 						let (y, x) = screen.convert_coordinates((y as usize, x as usize));
-						if self.field.position_is_valid(y, x) {
-							let cell = &mut self.field.cells[y][x];
+						if game.field.position_is_valid(y, x) {
+							let cell = &mut game.field.cells[y][x];
 							cell.toggle_flag();
-							screen.render_field(&self.field);
-						} else {
-							screen
-								.prompt_message(&format!("Out of bound position: ({}, {})", y, x));
+							screen.render_field(&game.field);
 						}
 					}
-					Event::Key(Key::Char('f')) => self.change_mode(&mut screen),
+					Event::Key(Key::Char('f')) => game.change_mode(&mut screen),
 					_ => {}
 				},
 			}
 
-			if self.field.nb_of_unreveiled_cells() == self.nb_mines {
-				screen.prompt_message("You won, congrats!\n");
-				screen.reposition_cursor();
-				break;
+			if game.is_won() {
+				screen.prompt_end("You won, congrats!\n");
+				break 'outer;
 			}
 		}
-		Ok(())
-	}
 
-	fn change_mode(&mut self, screen: &mut Output) {
-		match self.mode {
-			Mode::Flag => {
-				self.mode = Mode::Normal;
-				screen.prompt_mode("Normal mode");
-			}
-			Mode::Normal => {
-				self.mode = Mode::Flag;
-				screen.prompt_mode("Flag mode");
-			}
-		}
 	}
+	Ok(())
 }
